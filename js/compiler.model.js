@@ -12,6 +12,9 @@ LessCompiler.prototype.register = function (ctrl) {
     this.controller = ctrl;
 };
 
+LessCompiler.prototype.unregister = function () {
+    this.controller = null;
+}
 /**
  *  Parse the input from controller into a format that 
  *  the compiler would understand
@@ -20,6 +23,9 @@ LessCompiler.prototype.parseInput = function () {
     if (typeof this.controller !== 'function') {
         return;
     }
+    // assume input is an array of lines of strings
+    var input = this.controller.readInput();
+    // match brackets and construct objects
 };
 
 /**
@@ -28,6 +34,38 @@ LessCompiler.prototype.parseInput = function () {
 LessCompiler.prototype.formatOutput = function () {
     if (typeof this.controller !== 'function') {
         return;
+    }
+    this.output.forEach(function (output) {
+        // recursively construct output string
+        var prefix = '';
+        this._recursiveGenerateOutput(prefix, output);
+    })
+};
+
+LessCompiler.prototype._recursiveGenerateOutput = function (prefix, input) {
+    var print = false;
+    var deferred = [];
+    for (var key in input) {
+        // if the value is a string, that means the (key, value) pair here
+        // is a rule in CSS
+        if (typeof input[key] === 'string') {
+            if (!print) {
+                print = true;
+                this.output.push(prefix + " {");
+            }
+            this.output.push(key + ": " + input[key] + ";");
+        }
+        // if the value is an object, that means the key is a selector in CSS
+        // defer the formatting until all primitive values are visited
+        else if (typeof input[key] === 'object') {
+            deferred.push(key);
+        }
+    }
+    if (print) {
+        this.output.push("}");
+    }
+    for (var i = 0; i < deferred.length; i ++) {
+        this._recursiveGenerateOutput(prefix + deferred[i], input[key])
     }
 };
 
@@ -59,9 +97,11 @@ LessCompiler.prototype.run = function () {
     if (this.input.length === 0) {
         return;
     }
-    this.replaceVariable();
-    this.parseHierarchy();
-    this.executeCalculation();
+    this.input.forEach(function () {
+        this.replaceVariable();
+        this.parseHierarchy();
+        this.executeCalculation();
+    });
     this.formatOutput();
 }
 
